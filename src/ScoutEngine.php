@@ -9,22 +9,14 @@ use Illuminate\Database\Eloquent\Collection;
 
 class ScoutEngine extends Engine
 {
-
-    /**
-     * Index where the models will be saved.
-     * @var string
-     */
-    protected $index;
-
     /**
      * ScoutEngine constructor.
      * @param Elastic $elastic
      * @param $index
      */
-    public function __construct(Elastic $elastic, $index)
+    public function __construct(Elastic $elastic)
     {
         $this->elastic = $elastic;
-        $this->index = $index;
     }
 
     /**
@@ -36,21 +28,19 @@ class ScoutEngine extends Engine
     {
         $params['body'] = [];
 
-        $models->each(function($model) use (&$params)
-        {
+        $models->each(function ($model) use (&$params) {
             $params['body'][] = [
                 'update' => [
-                    '_id' => $model->getKey(),
-                    '_index' => $this->index,
-                    '_type' => $model->searchableAs(),
+                    '_id'    => $model->getKey(),
+                    '_index' => $model->searchableAs(),
+                    '_type'  => $model->searchableAs(),
                 ]
             ];
 
             $params['body'][] = [
-                'doc' => $model->toSearchableArray(),
+                'doc'           => $model->toSearchableArray(),
                 'doc_as_upsert' => true
             ];
-
         });
 
         $this->elastic->bulk($params);
@@ -65,13 +55,12 @@ class ScoutEngine extends Engine
     {
         $params['body'] = [];
 
-        $models->each(function($model) use (&$params)
-        {
+        $models->each(function ($model) use (&$params) {
             $params['body'][] = [
                 'delete' => [
-                    '_id' => $model->getKey(),
-                    '_index' => $this->index,
-                    '_type' => $model->searchableAs(),
+                    '_id'    => $model->getKey(),
+                    '_index' => $model->searchableAs(),
+                    '_type'  => $model->searchableAs(),
                 ]
             ];
         });
@@ -88,7 +77,7 @@ class ScoutEngine extends Engine
     {
         return $this->performSearch($builder, array_filter([
             'numericFilters' => $this->filters($builder),
-            'size' => $builder->limit,
+            'size'           => $builder->limit,
         ]));
     }
 
@@ -103,61 +92,13 @@ class ScoutEngine extends Engine
     {
         $result = $this->performSearch($builder, [
             'numericFilters' => $this->filters($builder),
-            'from' => (($page * $perPage) - $perPage),
-            'size' => $perPage,
+            'from'           => (($page * $perPage) - $perPage),
+            'size'           => $perPage,
         ]);
 
-        $result['nbPages'] = $result['hits']['total']/$perPage;
+        $result['nbPages'] = $result['hits']['total'] / $perPage;
 
         return $result;
-    }
-
-    /**
-     * Perform the given search on the engine.
-     * @param  Builder  $builder
-     * @param  array  $options
-     * @return mixed
-     */
-    protected function performSearch(Builder $builder, array $options = [])
-    {
-        $params = [
-            'index' => $this->index,
-            'type' => $builder->model->searchableAs(),
-            'body' => [
-                'query' => [
-                    'bool' => [
-                        'must' => [['query_string' => [ 'query' => $builder->query]]]
-                    ]
-                ]
-            ]
-        ];
-
-        if (isset($options['from'])) {
-            $params['body']['from'] = $options['from'];
-        }
-
-        if (isset($options['size'])) {
-            $params['body']['size'] = $options['size'];
-        }
-
-        if (isset($options['numericFilters']) && count($options['numericFilters'])) {
-            $params['body']['query']['bool']['must'] = array_merge($params['body']['query']['bool']['must'],
-                $options['numericFilters']);
-        }
-
-        return $this->elastic->search($params);
-    }
-
-    /**
-     * Get the filter array for the query.
-     * @param  Builder  $builder
-     * @return array
-     */
-    protected function filters(Builder $builder)
-    {
-        return collect($builder->wheres)->map(function ($value, $key) {
-            return ['match_phrase' => [$key => $value]];
-        })->values()->all();
     }
 
     /**
@@ -176,7 +117,8 @@ class ScoutEngine extends Engine
             ->pluck('_id')->values()->all();
 
         $models = $model->whereIn(
-            $model->getKeyName(), $keys
+            $model->getKeyName(),
+            $keys
         )->get()->keyBy($model->getKeyName());
 
         return collect($results['hits']['hits'])->map(function ($hit) use ($model, $models) {
@@ -184,7 +126,10 @@ class ScoutEngine extends Engine
         });
     }
 
-    public function mapIds($results){}
+    public function mapIds($results)
+    {
+        //
+    }
 
     /**
      * Get the total count from a raw result returned by the engine.
@@ -194,5 +139,55 @@ class ScoutEngine extends Engine
     public function getTotalCount($results)
     {
         return $results['hits']['total'];
+    }
+
+    /**
+     * Perform the given search on the engine.
+     * @param  Builder  $builder
+     * @param  array  $options
+     * @return mixed
+     */
+    protected function performSearch(Builder $builder, array $options = [])
+    {
+        $params = [
+            'index' => $builder->model->searchableAs(),
+            'type'  => $builder->model->searchableAs(),
+            'body'  => [
+                'query' => [
+                    'bool' => [
+                        'must' => [['query_string' => ['query' => $builder->query]]]
+                    ]
+                ]
+            ]
+        ];
+
+        if (isset($options['from'])) {
+            $params['body']['from'] = $options['from'];
+        }
+
+        if (isset($options['size'])) {
+            $params['body']['size'] = $options['size'];
+        }
+
+        if (isset($options['numericFilters']) && count($options['numericFilters'])) {
+            $params['body']['query']['bool']['must'] = array_merge(
+                $params['body']['query']['bool']['must'],
+                $options['numericFilters']
+            );
+        }
+
+        return $this->elastic->search($params);
+    }
+
+    /**
+     * Get the filter array for the query.
+     * @param  Builder  $builder
+     * @return array
+     */
+    protected function filters(Builder $builder)
+    {
+        return collect($builder->wheres)->map(function ($value, $key) {
+            return ['match_phrase' => [$key => $value]];
+        })->values()->all();
     }
 }

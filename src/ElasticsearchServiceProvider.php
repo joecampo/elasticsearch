@@ -2,15 +2,15 @@
 
 namespace Basemkhirat\Elasticsearch;
 
-use Basemkhirat\Elasticsearch\Commands\ReindexCommand;
-use Elasticsearch\ClientBuilder as ElasticBuilder;
-use Illuminate\Contracts\Container\BindingResolutionException;
-use Illuminate\Support\ServiceProvider;
 use Laravel\Scout\EngineManager;
-use Basemkhirat\Elasticsearch\Commands\ListIndicesCommand;
-use Basemkhirat\Elasticsearch\Commands\CreateIndexCommand;
+use Illuminate\Support\ServiceProvider;
+use Elasticsearch\ClientBuilder as ElasticBuilder;
+use Basemkhirat\Elasticsearch\Commands\ReindexCommand;
 use Basemkhirat\Elasticsearch\Commands\DropIndexCommand;
+use Basemkhirat\Elasticsearch\Commands\CreateIndexCommand;
+use Basemkhirat\Elasticsearch\Commands\ListIndicesCommand;
 use Basemkhirat\Elasticsearch\Commands\UpdateIndexCommand;
+use Illuminate\Contracts\Container\BindingResolutionException;
 
 /**
  * Class ElasticsearchServiceProvider
@@ -23,7 +23,7 @@ class ElasticsearchServiceProvider extends ServiceProvider
      * ElasticsearchServiceProvider constructor.
      * @param Application $app
      */
-    function __construct($app)
+    public function __construct($app)
     {
         $this->app = $app;
     }
@@ -35,9 +35,9 @@ class ElasticsearchServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-
         $this->mergeConfigFrom(
-            dirname(__FILE__) . '/config/es.php', 'es'
+            dirname(__FILE__) . '/config/es.php',
+            'es'
         );
 
         $this->publishes([
@@ -53,25 +53,17 @@ class ElasticsearchServiceProvider extends ServiceProvider
         // Resolve Laravel Scout engine.
 
         if (class_exists("Laravel\\Scout\\EngineManager")) {
-
             try {
-
                 $this->app->make(EngineManager::class)->extend('es', function () {
-
                     $config = config('es.connections.' . config('scout.es.connection'));
 
                     return new ScoutEngine(
-                        ElasticBuilder::create()->setHosts($config["servers"])->build(),
-                        $config["index"]
+                        ElasticBuilder::create()->setHosts($config["servers"])->build()
                     );
-
                 });
-
             } catch (BindingResolutionException $e) {
-
                 // Class is not resolved.
                 // Laravel Scout service provider was not loaded yet.
-
             }
         }
     }
@@ -86,12 +78,8 @@ class ElasticsearchServiceProvider extends ServiceProvider
 
         // Package commands available for laravel or lumen higher than 5.1
 
-        if(version_compare($this->app->version(), '5.1', ">=") or starts_with($this->app->version(), "Lumen")) {
-
+        if (version_compare($this->app->version(), '5.1', ">=") or starts_with($this->app->version(), "Lumen")) {
             if ($this->app->runningInConsole()) {
-
-                // Registering commands
-
                 $this->commands([
                     ListIndicesCommand::class,
                     CreateIndexCommand::class,
@@ -99,7 +87,6 @@ class ElasticsearchServiceProvider extends ServiceProvider
                     DropIndexCommand::class,
                     ReindexCommand::class
                 ]);
-
             }
         }
 
