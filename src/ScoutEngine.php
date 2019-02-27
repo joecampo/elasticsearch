@@ -107,7 +107,7 @@ class ScoutEngine extends Engine
      * @param  \Illuminate\Database\Eloquent\Model  $model
      * @return Collection
      */
-    public function map($results, $model)
+    public function map(Builder $builder, $results, $model)
     {
         if ($results['hits']['total'] === 0) {
             return Collection::make();
@@ -121,9 +121,14 @@ class ScoutEngine extends Engine
             $keys
         )->get()->keyBy($model->getKeyName());
 
-        return collect($results['hits']['hits'])->map(function ($hit) use ($model, $models) {
+        return Collection::make($results['hits']['hits'])->map(function ($hit) use ($model, $models) {
             return $models[$hit['_id']];
         });
+    }
+
+    public function flush($model)
+    {
+        //
     }
 
     public function mapIds($results)
