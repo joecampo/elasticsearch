@@ -155,8 +155,8 @@ class ScoutEngine extends Engine
     protected function performSearch(Builder $builder, array $options = [])
     {
         $params = [
-            'index' => $builder->model->searchableAs(),
-            'type'  => $builder->model->searchableAs(),
+            'index' => $builder->index,
+            'type'  => $builder->index,
             'body'  => [
                 'query' => [
                     'bool' => [
